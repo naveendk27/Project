@@ -1,0 +1,600 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Pipe Rescue</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #f0f4f8;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    padding: 24px 12px;
+    gap: 28px;
+    flex-wrap: wrap;
+  }
+
+  .phone {
+    width: 320px;
+    background: #ffffff;
+    border-radius: 36px;
+    border: 3px solid #cbd5e1;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.13);
+    overflow: hidden;
+  }
+  .notch-bar {
+    background: #1e293b;
+    padding: 8px 0 0;
+    display: flex;
+    justify-content: center;
+  }
+  .notch {
+    width: 80px;
+    height: 18px;
+    background: #0f172a;
+    border-radius: 0 0 12px 12px;
+  }
+
+  /* ── Gameplay screen ── */
+  .screen {
+    padding: 14px 16px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    background: #ffffff;
+  }
+  .title-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 22px;
+    font-weight: 900;
+    color: #1e293b;
+  }
+  .subtitle {
+    font-size: 12px;
+    color: #64748b;
+    text-align: center;
+  }
+  .moves-bar {
+    background: #1d4ed8;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 800;
+    padding: 8px;
+    border-radius: 8px;
+    width: 100%;
+    text-align: center;
+  }
+  .hint-row {
+    background: #fefce8;
+    border: 1px solid #fde68a;
+    color: #92400e;
+    font-size: 11px;
+    padding: 5px 10px;
+    border-radius: 6px;
+    width: 100%;
+    text-align: center;
+  }
+
+  /* ── Grid ── */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(4, 66px);
+    grid-template-rows: repeat(4, 66px);
+    gap: 5px;
+  }
+  .tile {
+    width: 66px;
+    height: 66px;
+    background: #dbeafe;
+    border: 2px solid #93c5fd;
+    border-radius: 9px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.12s, border-color 0.12s;
+    overflow: hidden;
+    position: relative;
+  }
+  .tile:active { transform: scale(0.91); }
+  .tile.source { background: #dcfce7; border-color: #16a34a; cursor: default; }
+  .tile.goal   { background: #fef9c3; border-color: #ca8a04; cursor: default; }
+  .tile.lit    { background: #bbf7d0; border-color: #15803d; }
+  .tile svg    { width: 80%; height: 80%; display: block; overflow: visible; }
+
+  .lbl { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; width: 100%; height: 100%; }
+  .lbl-top { font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 3px; letter-spacing: 0.3px; }
+  .lbl-bot { font-size: 8px; font-weight: 600; }
+  .source .lbl-top { background: #16a34a; color: #fff; }
+  .source .lbl-bot { color: #15803d; }
+  .goal .lbl-top   { background: #ca8a04; color: #fff; }
+  .goal .lbl-bot   { color: #92400e; }
+
+  .check-btn {
+    width: 100%; padding: 13px;
+    background: #16a34a; color: #fff;
+    font-size: 15px; font-weight: 800;
+    border: none; border-radius: 10px; cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+  }
+  .check-btn:hover { background: #15803d; }
+  .check-btn:active { transform: scale(0.97); }
+  .status-bar {
+    background: #f1f5f9; color: #64748b;
+    font-size: 11px; padding: 6px 10px;
+    border-radius: 6px; width: 100%;
+    text-align: center; border: 1px solid #e2e8f0;
+    min-height: 30px;
+  }
+
+  /* ── End card screen (hidden until win/lose) ── */
+  .end-screen {
+    display: none;
+    padding: 20px 16px 24px;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    background: #ffffff;
+    min-height: 580px;
+    justify-content: center;
+    animation: fadeIn 0.35s ease;
+  }
+  .end-screen.visible { display: flex; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .win-badge {
+    padding: 5px 16px; border-radius: 999px;
+    font-size: 13px; font-weight: 700;
+  }
+  .win-title {
+    font-size: 30px; font-weight: 900;
+    text-align: center; line-height: 1.1;
+  }
+  .win-sub { color: #64748b; font-size: 13px; text-align: center; }
+
+  .preview-box {
+    background: #f8fafc;
+    border: 1.5px solid #22c55e;
+    border-radius: 12px;
+    padding: 10px 12px;
+    width: 100%;
+  }
+  .preview-title {
+    color: #15803d; font-size: 11px; font-weight: 800;
+    text-align: center; margin-bottom: 8px;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .prev-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 52px);
+    grid-template-rows: repeat(4, 52px);
+    gap: 4px; margin: 0 auto; width: fit-content;
+  }
+  .ptile {
+    width: 52px; height: 52px;
+    background: #dbeafe; border: 1.5px solid #93c5fd;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  .ptile.source { background: #dcfce7; border-color: #16a34a; }
+  .ptile.goal   { background: #fef9c3; border-color: #ca8a04; }
+  .ptile.lit    { background: #bbf7d0; border-color: #15803d; }
+  .ptile svg    { width: 78%; height: 78%; display: block; overflow: visible; }
+
+  .preview-note { color: #94a3b8; font-size: 10px; text-align: center; }
+  .moves-used-note { color: #64748b; font-size: 12px; font-weight: 600; text-align: center; }
+
+  .play-btn {
+    width: 100%; padding: 14px;
+    background: #1d4ed8; color: #fff;
+    font-size: 16px; font-weight: 900;
+    border: none; border-radius: 12px; cursor: pointer;
+    transition: background 0.15s;
+  }
+  .play-btn:hover { background: #1e40af; }
+  .retry-btn {
+    width: 100%; padding: 9px;
+    background: transparent; color: #64748b;
+    font-size: 12px; border: 1.5px solid #cbd5e1;
+    border-radius: 8px; cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .retry-btn:hover { color: #374151; border-color: #94a3b8; }
+
+  .phone-label {
+    text-align: center; font-size: 12px; font-weight: 700;
+    color: #475569; letter-spacing: 0.8px;
+    text-transform: uppercase; margin-bottom: 6px;
+  }
+
+  /* Puzzle number badge */
+  .puzzle-badge {
+    background: #ede9fe; color: #7c3aed;
+    font-size: 11px; font-weight: 700;
+    padding: 3px 10px; border-radius: 999px;
+    align-self: flex-end;
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══ GAMEPLAY PHONE ═══ -->
+<div>
+  <div class="phone-label">Gameplay Screen</div>
+  <div class="phone" id="gameplay-phone">
+    <div class="notch-bar"><div class="notch"></div></div>
+    <div class="screen" id="gameplay-screen">
+      <div class="title-row">💧 Pipe Rescue</div>
+      <div class="subtitle">Tap tiles to rotate pipes. Connect START to GOAL!</div>
+      <div class="moves-bar">Moves Left: <span id="moves-count">12</span></div>
+      <div class="hint-row">💡 Tap a tile to rotate it 90° — then Check Path</div>
+      <div class="grid" id="grid"></div>
+      <button class="check-btn" onclick="checkPath()">✅ Check Path</button>
+      <div class="status-bar" id="status-msg">Rotate the pipes to connect START → GOAL</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ END CARD PHONE ═══ -->
+<div>
+  <div class="phone-label">Win / End Card</div>
+  <div class="phone" id="endcard-phone">
+    <div class="notch-bar"><div class="notch"></div></div>
+    <div class="end-screen" id="end-screen">
+      <div class="win-badge" id="win-badge">✅ Puzzle Solved!</div>
+      <div class="win-title" id="win-title">You fixed it!</div>
+      <div class="win-sub" id="win-sub">Puzzle complete</div>
+      <div class="moves-used-note" id="moves-used-note"></div>
+      <div class="preview-box">
+        <div class="preview-title">Solved Path Preview</div>
+        <div class="prev-grid" id="preview-grid"></div>
+      </div>
+      <div class="preview-note" id="preview-note">Your solved connection</div>
+      <button class="play-btn" onclick="loadNextPuzzle()">🎮 Next Puzzle</button>
+      <button class="retry-btn" onclick="resetGame()">↺ Try Again (same puzzle)</button>
+    </div>
+    <!-- Placeholder when end card not shown yet -->
+    <div id="end-placeholder" style="padding:40px 20px; text-align:center; color:#94a3b8; font-size:13px; min-height:200px; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:8px;">
+      <div style="font-size:40px;">🎯</div>
+      <div style="font-weight:700; color:#64748b;">Win/End Card</div>
+      <div>Appears here after you<br><strong>Check Path</strong> on the left!</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════════
+//  PIPE DRAWING
+// ══════════════════════════════════════════════════════════════════════
+const PIPE_COLOR_DIM = '#60a5fa';
+const PIPE_COLOR_LIT = '#16a34a';
+
+function pipeSVG(type, rotDeg, lit) {
+  const c = lit ? PIPE_COLOR_LIT : PIPE_COLOR_DIM;
+  const sw = 12;
+  const sc = `stroke="${c}" stroke-width="${sw}" stroke-linecap="round" fill="none"`;
+  let body = '';
+  switch (type) {
+    case 'straight':
+      body = `<line x1="50" y1="0" x2="50" y2="100" ${sc}/>`;
+      break;
+    case 'elbow':
+      body = `<path d="M50,0 L50,50 L100,50" ${sc}/>`;
+      break;
+    case 'tee':
+      body = `<line x1="50" y1="0" x2="50" y2="50" ${sc}/>
+              <line x1="0"  y1="50" x2="100" y2="50" ${sc}/>`;
+      break;
+    case 'cross':
+      body = `<line x1="50" y1="0"  x2="50"  y2="100" ${sc}/>
+              <line x1="0"  y1="50" x2="100" y2="50"  ${sc}/>`;
+      break;
+  }
+  return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"
+    style="transform:rotate(${rotDeg}deg);transition:transform 0.25s cubic-bezier(.4,1.8,.6,1)">${body}</svg>`;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  MULTIPLE PUZZLES
+//  Each puzzle: array of 16 tiles {t, r} in solved state + scramble offsets
+//  source: opens BOTTOM (exits down) at rot=0
+//  goal:   opens TOP (enters from above) at rot=0
+// ══════════════════════════════════════════════════════════════════════
+
+const BASE_SIDES = {
+  straight: [true,  false, true,  false],
+  elbow:    [true,  true,  false, false],
+  tee:      [true,  true,  false, true ],
+  cross:    [true,  true,  true,  true ],
+  source:   [false, false, true,  false],
+  goal:     [true,  false, false, false],
+};
+
+function getSides(tile) {
+  const base = BASE_SIDES[tile.t] || [false,false,false,false];
+  let s = [...base];
+  const n = Math.round((((tile.r % 360) + 360) % 360) / 90) % 4;
+  for (let i = 0; i < n; i++) s = [s[3], s[0], s[1], s[2]];
+  return s;
+}
+
+// All puzzles defined as solved layouts; scramble applied on load
+const PUZZLES = [
+  // ── Puzzle 1: L-shape down col0 then right on row2 ──
+  {
+    name: "Leaky Pipes",
+    moves: 12,
+    tiles: [
+      {t:'source',   r:0  }, {t:'elbow',    r:180}, {t:'tee',      r:90 }, {t:'straight', r:0  },
+      {t:'straight', r:0  }, {t:'cross',    r:0  }, {t:'elbow',    r:270}, {t:'tee',      r:0  },
+      {t:'elbow',    r:0  }, {t:'straight', r:90 }, {t:'straight', r:90 }, {t:'elbow',    r:180},
+      {t:'tee',      r:270}, {t:'elbow',    r:90 }, {t:'straight', r:0  }, {t:'goal',     r:0  },
+    ],
+    // which tiles are on the solution path (for BFS to confirm)
+    scramble: [0,90,180,90, 90,0,180,270, 270,180,0,90, 90,180,270,0]
+  },
+  // ── Puzzle 2: Straight down right column ──
+  {
+    name: "Right Rush",
+    moves: 10,
+    tiles: [
+      {t:'tee',      r:270}, {t:'elbow',    r:90 }, {t:'straight', r:0  }, {t:'source',   r:0  },
+      {t:'cross',    r:0  }, {t:'straight', r:90 }, {t:'elbow',    r:180}, {t:'straight', r:0  },
+      {t:'elbow',    r:270}, {t:'tee',      r:180}, {t:'straight', r:90 }, {t:'straight', r:0  },
+      {t:'straight', r:90 }, {t:'elbow',    r:0  }, {t:'tee',      r:90 }, {t:'goal',     r:0  },
+    ],
+    scramble: [180,0,90,0, 90,270,0,90, 0,90,180,270, 270,180,0,90]
+  },
+  // ── Puzzle 3: Zigzag path ──
+  {
+    name: "Zigzag Zone",
+    moves: 14,
+    tiles: [
+      {t:'source',   r:0  }, {t:'straight', r:90 }, {t:'elbow',    r:180}, {t:'tee',      r:270},
+      {t:'elbow',    r:90 }, {t:'tee',      r:0  }, {t:'straight', r:0  }, {t:'cross',    r:0  },
+      {t:'straight', r:0  }, {t:'elbow',    r:270}, {t:'elbow',    r:0  }, {t:'straight', r:90 },
+      {t:'cross',    r:0  }, {t:'straight', r:90 }, {t:'elbow',    r:90 }, {t:'goal',     r:0  },
+    ],
+    scramble: [0,180,90,0, 270,90,180,90, 90,0,270,180, 180,270,0,90]
+  },
+  // ── Puzzle 4: Cross-center path ──
+  {
+    name: "Cross Roads",
+    moves: 11,
+    tiles: [
+      {t:'tee',      r:90 }, {t:'source',   r:0  }, {t:'straight', r:90 }, {t:'elbow',    r:180},
+      {t:'elbow',    r:270}, {t:'straight', r:0  }, {t:'cross',    r:0  }, {t:'straight', r:0  },
+      {t:'straight', r:90 }, {t:'elbow',    r:90 }, {t:'tee',      r:180}, {t:'elbow',    r:270},
+      {t:'elbow',    r:0  }, {t:'straight', r:90 }, {t:'straight', r:0  }, {t:'goal',     r:0  },
+    ],
+    scramble: [90,0,270,90, 180,90,0,270, 0,180,90,0, 270,0,180,90]
+  },
+];
+
+let currentPuzzleIdx = 0;
+let grid = [], moves = 12, maxMoves = 12, gameOver = false;
+let movesUsed = 0;
+
+// ══════════════════════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════════════════════
+function initGrid(puzzleIdx) {
+  const puzzle = PUZZLES[puzzleIdx];
+  maxMoves = puzzle.moves;
+  moves = puzzle.moves;
+  movesUsed = 0;
+  gameOver = false;
+
+  grid = puzzle.tiles.map((cell, i) => {
+    const fixed = cell.t === 'source' || cell.t === 'goal';
+    // Apply scramble offset to non-fixed tiles
+    const scrambleRot = fixed ? cell.r : (cell.r + puzzle.scramble[i]) % 360;
+    return { t: cell.t, r: scrambleRot };
+  });
+
+  document.getElementById('moves-count').textContent = moves;
+  setStatus('Rotate the pipes to connect START → GOAL', '#64748b');
+
+  // Hide end card, show placeholder
+  document.getElementById('end-screen').classList.remove('visible');
+  document.getElementById('end-placeholder').style.display = 'flex';
+  document.getElementById('end-placeholder').innerHTML = `
+    <div style="font-size:40px;">🎯</div>
+    <div style="font-weight:700; color:#64748b; font-size:14px;">Puzzle ${puzzleIdx+1}: ${puzzle.name}</div>
+    <div style="font-size:12px; color:#94a3b8;">Win/End Card appears here<br>after you <strong>Check Path</strong>!</div>
+  `;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  BFS
+// ══════════════════════════════════════════════════════════════════════
+function getConnected(g) {
+  const src = g.findIndex(t => t.t === 'source');
+  if (src < 0) return new Set();
+  const vis = new Set([src]);
+  const q = [src];
+  const DR = [-1,0,1,0], DC = [0,1,0,-1], OPP = [2,3,0,1];
+  while (q.length) {
+    const cur = q.shift();
+    const row = Math.floor(cur/4), col = cur%4;
+    const s = getSides(g[cur]);
+    for (let d = 0; d < 4; d++) {
+      if (!s[d]) continue;
+      const nr = row+DR[d], nc = col+DC[d];
+      if (nr<0||nr>=4||nc<0||nc>=4) continue;
+      const ni = nr*4+nc;
+      if (vis.has(ni)) continue;
+      if (!getSides(g[ni])[OPP[d]]) continue;
+      vis.add(ni);
+      q.push(ni);
+    }
+  }
+  return vis;
+}
+
+function isWon(g) {
+  const c = getConnected(g);
+  return c.has(g.findIndex(t => t.t === 'goal'));
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  RENDER
+// ══════════════════════════════════════════════════════════════════════
+function renderGrid() {
+  const el = document.getElementById('grid');
+  el.innerHTML = '';
+  const lit = getConnected(grid);
+
+  grid.forEach((tile, i) => {
+    const div = document.createElement('div');
+    div.className = 'tile';
+    const isLit = lit.has(i);
+
+    if (tile.t === 'source') {
+      div.classList.add('source');
+      div.innerHTML = `<div class="lbl"><span class="lbl-top">▶ START</span><span class="lbl-bot">Water Source</span></div>`;
+    } else if (tile.t === 'goal') {
+      div.classList.add('goal');
+      div.innerHTML = `<div class="lbl"><span class="lbl-top">★ GOAL</span><span class="lbl-bot">End Point</span></div>`;
+    } else {
+      if (isLit) div.classList.add('lit');
+      div.innerHTML = pipeSVG(tile.t, tile.r, isLit);
+      div.addEventListener('click', () => rotateTile(i));
+    }
+    el.appendChild(div);
+  });
+}
+
+function rotateTile(idx) {
+  if (gameOver || moves <= 0) return;
+  grid[idx].r = (grid[idx].r + 90) % 360;
+  moves--;
+  movesUsed++;
+  document.getElementById('moves-count').textContent = moves;
+  renderGrid();
+  setStatus('Tap ✅ Check Path when ready!', '#1d4ed8');
+
+  if (moves <= 0 && !isWon(grid)) {
+    triggerFail();
+  }
+}
+
+function checkPath() {
+  if (gameOver) return;
+  if (isWon(grid)) {
+    triggerWin();
+  } else {
+    setStatus('❌ Not connected yet — keep rotating!', '#dc2626');
+  }
+}
+
+function triggerWin() {
+  gameOver = true;
+  setStatus('✅ Path connected! You fixed it!', '#15803d');
+  showEndCard(true, grid);
+}
+
+function triggerFail() {
+  gameOver = true;
+  setStatus('💀 Out of moves! Check the solution →', '#dc2626');
+  // Show solved state in preview
+  const solvedGrid = PUZZLES[currentPuzzleIdx].tiles.map(c => ({t: c.t, r: c.r}));
+  showEndCard(false, solvedGrid);
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  END CARD
+// ══════════════════════════════════════════════════════════════════════
+function showEndCard(won, g) {
+  // Hide placeholder, show end screen
+  document.getElementById('end-placeholder').style.display = 'none';
+  const endScreen = document.getElementById('end-screen');
+  endScreen.classList.add('visible');
+
+  const badge = document.getElementById('win-badge');
+  const title = document.getElementById('win-title');
+  const sub   = document.getElementById('win-sub');
+  const note  = document.getElementById('preview-note');
+  const movesNote = document.getElementById('moves-used-note');
+  const puzzle = PUZZLES[currentPuzzleIdx];
+
+  if (won) {
+    badge.textContent = '✅ Puzzle Solved!';
+    badge.style.background = '#dcfce7'; badge.style.color = '#15803d';
+    title.textContent = 'You fixed it!'; title.style.color = '#16a34a';
+    sub.textContent = `Puzzle ${currentPuzzleIdx+1}: ${puzzle.name}`;
+    movesNote.textContent = `🎯 Solved in ${movesUsed} move${movesUsed !== 1 ? 's' : ''}! (${moves} remaining)`;
+    note.textContent = 'Your solved connection ✨';
+  } else {
+    badge.textContent = '❌ Out of Moves';
+    badge.style.background = '#fee2e2'; badge.style.color = '#dc2626';
+    title.textContent = 'Out of moves!'; title.style.color = '#dc2626';
+    sub.textContent = `Here's the solution for ${puzzle.name}:`;
+    movesNote.textContent = `Used all ${maxMoves} moves 😔`;
+    note.textContent = 'Correct solution shown above';
+  }
+
+  renderPreview(g);
+}
+
+function renderPreview(g) {
+  const el = document.getElementById('preview-grid');
+  el.innerHTML = '';
+  const lit = getConnected(g);
+  g.forEach((tile, i) => {
+    const div = document.createElement('div');
+    div.className = 'ptile';
+    const isLit = lit.has(i);
+    if (tile.t === 'source') {
+      div.classList.add('source');
+      div.innerHTML = `<svg viewBox="0 0 100 100"><text x="50" y="42" text-anchor="middle" fill="#15803d" font-size="22" font-weight="800">▶</text><text x="50" y="64" text-anchor="middle" fill="#166534" font-size="13" font-family="Arial">START</text></svg>`;
+    } else if (tile.t === 'goal') {
+      div.classList.add('goal');
+      div.innerHTML = `<svg viewBox="0 0 100 100"><text x="50" y="42" text-anchor="middle" fill="#92400e" font-size="22" font-weight="800">★</text><text x="50" y="64" text-anchor="middle" fill="#78350f" font-size="13" font-family="Arial">GOAL</text></svg>`;
+    } else {
+      if (isLit) div.classList.add('lit');
+      div.innerHTML = pipeSVG(tile.t, tile.r, isLit);
+    }
+    el.appendChild(div);
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  NAVIGATION
+// ══════════════════════════════════════════════════════════════════════
+function loadNextPuzzle() {
+  currentPuzzleIdx = (currentPuzzleIdx + 1) % PUZZLES.length;
+  initGrid(currentPuzzleIdx);
+  renderGrid();
+}
+
+function resetGame() {
+  initGrid(currentPuzzleIdx);
+  renderGrid();
+}
+
+function setStatus(msg, color) {
+  const el = document.getElementById('status-msg');
+  el.textContent = msg;
+  el.style.color = color;
+}
+
+// ── Boot ─────────────────────────────────────────────────────────────
+initGrid(0);
+renderGrid();
+</script>
+</body>
+</html>
